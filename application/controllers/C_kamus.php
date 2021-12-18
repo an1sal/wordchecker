@@ -17,6 +17,11 @@ class C_kamus extends CI_Controller {
         // $this->load->library('upload', $config);
 
 		// $fileName;
+		// $checkName = "./word_id.txt";
+		// $checkPath = $checkName;
+		// $fileCheck = fopen("./test.txt", "r") or die("unable to open file!");
+		// $stringCheck = fread($fileCheck,filesize($checkPath));
+		// fclose($fileCheck);
 
 		// if ($this->do_upload('file'))
 		//{
@@ -38,6 +43,7 @@ class C_kamus extends CI_Controller {
 		$stopWord = $stopWordFactory->createStopWordRemover();
 
 		$arrayString = preg_split("/(\s)/ ", $stringFile);
+		// $stringCheck = preg_split("/(\n)/ ", $stringCheck);
 
 		$inggris = 0;
 		$indonesia = 0;
@@ -48,18 +54,38 @@ class C_kamus extends CI_Controller {
 			$output = $stemmer->stem($word);
 			echo $word . "->";
 			echo $output . "<br>";
-			$bahasa = $this->M_kamus->getBahasa($output);
-			switch ($bahasa) {
-				case 'Indonesia':
+			$kategori = $this->M_kamus->getBahasa($output);
+			// switch($kategori["kategori"]){
+			// 	case 'indonesia':
+			// 		$indonesia += 1;
+			// 		break;
+				  
+			// 	default:
+			// 		$unknown += 1;
+			// 		break;
+			// }
+			if($kategori != null)
+			{
+				if($kategori["kategori"] == 'indonesia')
+				{
 					$indonesia += 1;
-					break;
-				case 'Inggris':
-					$inggirs += 1;
-					break;
-				default:
-					$unknown += 1;
-					break;
+				}
+			} else {
+				$unknown += 1;
 			}
+				 
+			// foreach($stringCheck as $checkWord)
+			// {
+			// 	if($word == $checkWord)
+			// 	{
+			// 		$indonesia += 1;
+			// 	}
+			// }
 		}
+		echo $indonesia;
+		echo "<br>";
+		// echo $inggris;
+		echo $unknown;
+		echo "<br>";
 	}
 }
