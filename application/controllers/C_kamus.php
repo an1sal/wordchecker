@@ -2,58 +2,86 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 use Sastrawi\Stemmer\StemmerFactory;
-use Sastrawi\StopWordRemover\StopWordRemoverFactory;
 
 class C_kamus extends CI_Controller {
 
+	public function __construct()
+    {
+        parent::__construct();
+        $this->load->helper('url', 'form'); 
+        $this->load->library('form_validation');
+    }
+
+	public function home()
+	{
+		$session = $this->session->userdata('count');
+		$data['data_points'] = array();
+		if(!isset($session)){
+			$data['error'] = "Tidak ada data";
+		} else {
+			foreach ($session as $key => $value){
+				if($key != 'Total'){
+					$arrayData = array(
+						'y' => $value/$session['Total']*100,
+						'label' => $key
+					);
+					array_push($data['data_points'], $arrayData);
+				}
+			}
+			$data['result_content'] = $session;
+			$data['unknown_words'] = $this->session->userdata('unknownword');
+		}
+		$this->load->view('V_kamus', $data);
+	}
 
 	public function inputFile()
 	{
 		$this->load->model('M_kamus');
-		// $config['upload_path'] = './upload/';
-        // $config['allowed_types'] = 'txt';
-        // $config['max_size'] = 2000;
+		$config['upload_path'] = './upload/';
+        $config['allowed_types'] = 'pdf';
+        $config['max_size'] = 20000;
 
-        // $this->load->library('upload', $config);
+		$this->load->library('upload', $config);
 
-		// $fileName;
-		// $checkName = "./word_id.txt";
-		// $checkPath = $checkName;
-		// $fileCheck = fopen("./test.txt", "r") or die("unable to open file!");
-		// $stringCheck = fread($fileCheck,filesize($checkPath));
-		// fclose($fileCheck);
+		if ($this->upload->do_upload('file'))
+        {
+            $fileData = $this->upload->data();
+            $fileName = $fileData['file_name'];
+        }
 
-		// if ($this->do_upload('file'))
-		//{
-			// $fileData = $this->upload->data();
-			$fileName = "./dummy.txt";
-			$filePath = $fileName;
+		$filePath = $fileData['file_path'] . $fileName;
 
-			// $filePath = $config['upload_path'] . $fileName;
+		$parser = new Smalot\PdfParser\Parser();
+		$pdf = $parser->parseFile($filePath);
 
-			$myFile = fopen($filePath, "r") or die("Unable to open file!");
-			$stringFile = fread($myFile,filesize($filePath));
-			// echo $stringFile;
-			fclose($myFile);
-		// }
+		$text = $pdf->getText();
+		// var_dump($text);
+
+		// echo $text;
+
 		$stemmerFactory = new StemmerFactory();
 		$stemmer = $stemmerFactory->createStemmer();
 
-		$stopWordFactory = new StopWordRemoverFactory();
-		$stopWord = $stopWordFactory->createStopWordRemover();
+		// $arrayString = preg_split("/(\s,\s),+(\s,\s)/", $filePath);
+		// $arrayString = preg_split('/\s+/', $filePath);
+		$arrayString = preg_split('/\W/', $text, 0, PREG_SPLIT_NO_EMPTY);
+		// var_dump($arrayString);
 
-		$arrayString = preg_split("/(\s)/ ", $stringFile);
-		// $stringCheck = preg_split("/(\n)/ ", $stringCheck);
+		// echo $filePath . "<br>" . "<br>";
+		// var_dump($arrayString);
 
 		$inggris = 0;
 		$indonesia = 0;
+		$daerah = 0;
+		$gaul = 0;
 		$unknown = 0;
+		$UW = array();
 
 		foreach ($arrayString as $word)
 		{
 			$output = $stemmer->stem($word);
-			echo $word . "->";
-			echo $output . "<br>";
+			// echo $word . "->";
+			// echo $output . "<br>";
 			$kategori = $this->M_kamus->getBahasa($output);
 			// switch($kategori["kategori"]){
 			// 	case 'indonesia':
@@ -70,22 +98,41 @@ class C_kamus extends CI_Controller {
 				{
 					$indonesia += 1;
 				}
+				else if($kategori["kategori"] == 'daerah')
+				{
+					$daerah += 1;
+				}
+				else if($kategori["kategori"] == 'inggris')
+				{
+					$inggris += 1;
+				}
+				else if($kategori["kategori"] == 'gaul')
+				{
+					$gaul += 1;
+				}
 			} else {
 				$unknown += 1;
+				array_push($UW, $word);
 			}
-				 
-			// foreach($stringCheck as $checkWord)
-			// {
-			// 	if($word == $checkWord)
-			// 	{
-			// 		$indonesia += 1;
-			// 	}
-			// }
+			$total = $indonesia + $daerah + $inggris + $gaul + $unknown;
 		}
-		echo $indonesia;
-		echo "<br>";
-		// echo $inggris;
-		echo $unknown;
-		echo "<br>";
+		$sessionData = array(
+			'Indonesia' => $indonesia,
+			'Daerah' => $daerah,
+			'Inggris' => $inggris,
+			'Gaul' => $gaul,
+			'Unknown' => $unknown,
+			'Total' => $total
+		);
+		$this->session->set_userdata('count',$sessionData);
+		$this->session->set_userdata('unknownword', $UW);
+		unlink($filePath);
+		redirect(base_url('C_kamus/home'));
+	}
+
+	public function reset()
+	{
+		session_destroy();
+		redirect(base_url('C_kamus/home'));
 	}
 }
